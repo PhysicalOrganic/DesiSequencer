@@ -1,6 +1,8 @@
 # PeakPicker
 
-# Workflow
+Converts raw DESI mass spectrometer data (.RAW) into plain text files which can be analyzed
+by the Python code to extract sequence information.
+## Workflow
 
     1. Use Visual Studio and Program.cs in the RawFileReaderExample directory to decode raw files 
        into textfiles.
