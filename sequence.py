@@ -5,12 +5,11 @@ from pathlib import Path
 from openpyxl import Workbook
 
 import numpy as np
-import argparse
 
-from utils import MonomerMasses
-from plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
+from DesiSequencer.utils import MonomerMasses
+from DesiSequencer.plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
 
-from massCluster import findLargestMassPeak
+from DesiSequencer.massCluster import findLargestMassPeak
 
 def getArgs():
     pass
@@ -218,8 +217,13 @@ def MatchMasstoMonomer(
 
 def sequenceFromDesiFile(
         file: Path, 
+        endcap_mass=262.084,
+        endcap_name = None,
         debug: bool = False
         ):
+    
+    if endcap_name is None:
+        endcap_name = 'END CAP (UNSPECIFIED)'
     
     # Initiate plotting here so we can plot within other functions
     fig, ax = plt.subplots(1,1, figsize = (12,6))
@@ -365,7 +369,7 @@ if __name__ == "__main__":
     endcap_name='Tyr(OMe)'
     debug = True
 
-    sequenceFromDesiFile(f, debug=debug)
+    sequenceFromDesiFile(f, debug=debug, endcap_mass=262.084, endcap_name='Tyr(OMe)')
 
 
     
