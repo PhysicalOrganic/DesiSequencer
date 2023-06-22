@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from openpyxl import Workbook
 
 import numpy as np
 
@@ -278,8 +277,11 @@ def sequenceFromDesiFile(
             TempSpots = [] # Reset the temp spots?
             count = 0
 
-    print(f'Number of spots Found: {len(IsolateSpots)}\n')
-    print(f"Spots found at scan Numbers: {IsolateSpots}\tNumber of scans: {len(CombinedScans)}\n")    
+    if len(IsolateSpots) != 1:
+        print(f'Found {len(IsolateSpots)} different spots in the data file.\n')
+    
+    if debug:
+        print(f"Spots found at scan Numbers: {IsolateSpots}\tNumber of scans: {len(CombinedScans)}\n")    
     
     # List of dictionaries which have mass:intensity pairs
     # Is the length of the number of spots
@@ -296,15 +298,14 @@ def sequenceFromDesiFile(
                     BasePeak[k] = CombinedScans[j][k]
         CombinedSpotScans.append(BasePeak)
 
-    columnNum = 1
-    SpotCount = 1
-
-    # Make a workbook to save the data
-    wb = Workbook()
-    ws = wb.active
+    # This contains all of the dataframes for each spot
+    # which we will use to output the results later
+    #raise NotImplementedError('This code above should be implemented.')
+    dataframes_for_spots = []
+    ms_spectra_for_spots = []
 
     # Iterate over every spot (which is the combined intensities over all scans which were done for that spot)
-    for x in CombinedSpotScans: 
+    for i, x in enumerate(CombinedSpotScans): 
 
         ScansTemp = pd.DataFrame(list(x.items()), columns=['Mass', 'Intensity'])
 
@@ -324,41 +325,54 @@ def sequenceFromDesiFile(
         # Match the list of masses to a particular monomer loss
         MassMatches = MatchMasstoMonomer(MonomerMasses, FoundSpectraMassesIntensity, endcap_mass=endcap_mass, endcap_name=endcap_name)
 
+        # This is just stored for printing
+        results = []
         # Iterate over the masses
-        for i, mass_found_in_spectrum in enumerate(FoundSpectraMasses):
-            # If 
-            if i < len(MassMatches):
-                if MassMatches[i] == endcap_name:
-                    print(endcap_mass, endcap_name, "(Endcap)")
-                    ws.cell(row=i+1, column=columnNum).value = round(endcap_mass, 2)
-                    ws.cell(row=i+1, column=columnNum+1).value = endcap_name
-                else:
-                    print(mass_found_in_spectrum, MassMatches[i])
-                    ws.cell(row=i+1, column=columnNum).value = mass_found_in_spectrum
-                    ws.cell(row=i+1, column=columnNum+1).value = MassMatches[i]
+        for j, mass_found_in_spectrum in enumerate(FoundSpectraMasses):
+            if MassMatches[j] == endcap_name:
+                results.append([j, endcap_mass, endcap_name + '(endcap)'])
             else:
-                print("ERROR I DONT UNDERSTAND", MassMatches, i)
+                results.append([j, mass_found_in_spectrum, MassMatches[j]])
 
-        # Increment the column number by 3 for the next spot
-        columnNum +=3
+        result = pd.DataFrame(results, columns=['Signal No.', 'M/Z', 'Monomer lost']).set_index('Signal No.')
+        
+        # Append the result dataframe
+        dataframes_for_spots.append(result)
 
+        # Plot the full spectrum
         x, y = zip(*sorted(x.items()))  
         ax.stem(x, y, linefmt='black', markerfmt='')
-        ax.set_title(f"Spot {SpotCount} of {len(IsolateSpots)} ({file.stem})")
+        ax.set_title(f"Spot {i + 1} of {len(IsolateSpots)} ({file.stem})")
         ax.set_ylabel('Counts')
         ax.set_xlabel(r'$m/z$')
-        #FoundSpectraMassesIntensity = {k:v for k,v in FoundSpectraMassesIntensity.items() if v > 100000}
         ax.stem(FoundSpectraMassesIntensity.keys(), FoundSpectraMassesIntensity.values(), linefmt='red', markerfmt='') #, width=1.5
 
-        if debug:
+        if debug: # Label parent peak
             ax.text(parent_mass*1.005, parent_mass_intensity * 1.005, 'Parent peak', color='red')
-        plt.show()
+        
+        tmp_image_path = Path(file.parent / str(name + f'_spot_{i + 1}' + ".png"))
+        plt.savefig(tmp_image_path, format='png', dpi = 600)
+        ms_spectra_for_spots.append(tmp_image_path)
 
-        SpotCount += 1
-        savePath = Path(file.parent / str(name + ".xlsx"))
-        print(f'\nFile saved at: {savePath.absolute()}')
-        wb.save(savePath)   
-        exit()
+    # Write results to the excel file
+    savePath = Path(file.parent / str(name + ".xlsx"))
+    writer = pd.ExcelWriter(savePath)
+    wb = writer.book
+    for i, d in enumerate(dataframes_for_spots):
+        sheet_name = f"Spot {i}"
+        d.to_excel(writer, sheet_name=sheet_name)
+        
+        # get the worksheet object
+        ws = writer.sheets[sheet_name]
+
+        ws.insert_image('E1', ms_spectra_for_spots[i])
+
+    writer.close()
+
+    for p in ms_spectra_for_spots:
+        p.unlink()
+
+    print(f'\nFile saved at: {savePath.absolute()}')  
 
 if __name__ == "__main__":
     # Define a file to 
