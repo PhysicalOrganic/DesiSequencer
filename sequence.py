@@ -5,10 +5,10 @@ from pathlib import Path
 
 import numpy as np
 
-from DesiSequencer.utils import MonomerMasses
-from DesiSequencer.plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
+from utils import MonomerMasses
+from plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
 
-from DesiSequencer.massCluster import findLargestMassPeak
+from massCluster import findLargestMassPeak
 
 def getArgs():
     pass
@@ -375,7 +375,7 @@ def sequenceFromDesiFile(
     print(f'\nFile saved at: {savePath.absolute()}')  
 
 if __name__ == "__main__":
-    # Define a file to 
+    # Define a file to analyze
     f = Path('./DesiSequencer/data/Oligomers March 2023/manualProfiling_mayaAngelou_spot1.txt')
     
     # Set some parameters
