@@ -12,7 +12,7 @@ by the Python code to extract sequence information.
        signal was incorrectly read as 1 unit off (i.e., signal that was 187,004 became 187,003). The 
        source of this difference is unknown.
 
-    2. Change the run and debug preferences to input the CLI arguments.
+    2. Change the run and debug preferences to input any CLI arguments.
 
     3. Run the program. The output will be a text file with the scan data which can be processed,
        plotted, and used to determine sequence information.

@@ -1,5 +1,6 @@
 # Only required to get the example working without
 # making this package pip installable
+#TODO Make package pip installable
 import sys
 sys.path.append("..")
 
@@ -16,7 +17,8 @@ if __name__ == "__main__":
     endcap_name = 'Tyr(OMe)'
     debug = True
 
-    # Convert rawfile 
+    # Convert rawfile, this is done using the python version, but the resulting
+    # file can be made using the C# code as well (stated in README)
     converted_file = readRawFile('./examples/test.RAW')
 
     # Sequence the converted file
