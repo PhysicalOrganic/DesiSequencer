@@ -17,11 +17,11 @@ def getGaussian(xdata: np.ndarray, ydata: np.ndarray, sigma: float, line_x: np.n
     ydata: np.ndarray
 
     sigma: float
-        Value which controls the broadness of the 
+        Value which controls the broadness of the
         gaussian curve
 
     line_x: np.ndarray
-        list of integers which represent the span over which 
+        list of integers which represent the span over which
         the guassian is calculated.
 
     Returns
@@ -43,9 +43,9 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 def playGround(
-        scanData: pd.DataFrame, 
-        sigma = 0.8, 
-        threshold: float = 0.02, 
+        scanData: pd.DataFrame,
+        sigma = 0.8,
+        threshold: float = 0.02,
         debug=True) -> pd.DataFrame:
     '''
     Add
@@ -95,7 +95,7 @@ def playGround(
     # Get the min and maxima indices of the evaluated line points
     # These are not the indices of the original data
     mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-    
+
     # Determine in the first point in both ma and mi
     # is either a minimum or a maximum. I don't think
     # this is necessary
@@ -106,7 +106,7 @@ def playGround(
         first_point_identity = 'min'
     else:
         raise ValueError('Could not determine if maximum or minimum value came first')
-    
+
     # The intervals are going to be pairs of minima
     if first_point_identity == 'max':
 
@@ -126,7 +126,7 @@ def playGround(
 
             # This is for coloring EVERYTHING because no intensity threshold
             #dfs_to_plot.append(scanData[(scanData['Mass'] >= split[0]) & (scanData['Mass'] < split[1])]) # For everything
-            
+
             if not temp.empty:
                 dfs_to_plot.append(temp)
             else:
@@ -165,8 +165,8 @@ def playGround(
     return scanData
 
 def findLargestMassPeak(
-        scanData: pd.DataFrame, 
-        threshold: float = 0.02, 
+        scanData: pd.DataFrame,
+        threshold: float = 0.02,
         bandwidth: float = 3.5,
         debug = False) -> float:
     '''
@@ -203,7 +203,7 @@ def findLargestMassPeak(
 
     # Get the threshold value
     threshold = threshold * max(y)
-    
+
     # Get a copy of the df above the intensity threshold
     tmp_df = scanData[scanData['Intensity'] > threshold].copy(deep=True)
 
@@ -223,7 +223,7 @@ def findLargestMassPeak(
     # Get the min and maxima indices of the evaluated line points
     # These are not the indices of the original data
     mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-    
+
     # Determine in the first point in both ma and mi
     # is either a minimum or a maximum. I don't think this is necessary
     if s[ma[0]] < s[mi[0]]:
@@ -233,7 +233,7 @@ def findLargestMassPeak(
         first_point_identity = 'min'
     else:
         raise ValueError('Could not determine if maximum or minimum value came first')
-    
+
     # The intervals are going to be pairs of minima
     if first_point_identity == 'max':
 
@@ -247,10 +247,10 @@ def findLargestMassPeak(
 
             # If it is the last split
             # this will get the group of signals with the highest mass
-            if i == len(s[mi]) - 2: 
+            if i == len(s[mi]) - 2:
                 temp = scanData[(scanData['Mass'] >= split[1]) & (scanData['Intensity'] >= threshold)]
-                parent_peak = float(temp[temp['Intensity'] == temp['Intensity'].max()].Mass)
-                parent_peak_intensity = float(temp[temp['Intensity'] == temp['Intensity'].max()].Intensity)
+                parent_peak = float(temp[temp['Intensity'].astype(float) == temp['Intensity'].astype(float).max()]['Mass'].iloc[0])
+                parent_peak_intensity = float(temp[temp['Intensity'] == temp['Intensity'].max()]['Intensity'].iloc[0])
 
     else:
         raise Exception('Code was not made to properly handle min first.')
@@ -258,17 +258,17 @@ def findLargestMassPeak(
     return parent_peak
 
 def findClusters(
-        scanData: pd.DataFrame, 
-        sigma = 0.8, 
+        scanData: pd.DataFrame,
+        sigma = 0.8,
         threshold: float = 0.02) -> pd.DataFrame:
     '''
-    Splits the scan data into smaller dataframes of the 
+    Splits the scan data into smaller dataframes of the
     clusters of peaks
     '''
 
     x, y = scanData['Mass'].to_numpy(), scanData['Intensity'].to_numpy()
     threshold = threshold * max(y)
-    
+
     tmp_df = scanData[scanData['Intensity'] >= threshold].copy(deep=True)
 
     # 1D array of masses
@@ -288,7 +288,7 @@ def findClusters(
     # Get the min and maxima indices of the evaluated line points
     # These are not the indices of the original data
     mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-    
+
     # Determine in the first point in both ma and mi
     # is either a minimum or a maximum. I don't think
     # this is necessary
@@ -299,7 +299,7 @@ def findClusters(
         first_point_identity = 'min'
     else:
         raise ValueError('Could not determine if maximum or minimum value came first')
-    
+
     # The intervals are going to be pairs of minima
     if first_point_identity == 'max':
 

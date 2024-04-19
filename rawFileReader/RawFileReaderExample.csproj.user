@@ -20,7 +20,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'Default' ">
     <StartAction>Project</StartAction>
-    <StartArguments>/Users/jrh6296/Downloads/Oligomers March 2023/</StartArguments>
-    <StartWorkingDirectory>..\..\..\..\..\Downloads\Oligomers March 2023\</StartWorkingDirectory>
+    <StartArguments>/Users/jameshoward/Documents/Programming/PeakPicker/DesiSequencer/data</StartArguments>
+    <StartWorkingDirectory>..\data\</StartWorkingDirectory>
   </PropertyGroup>
 </Project>

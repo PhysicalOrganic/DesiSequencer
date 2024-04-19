@@ -146,7 +146,7 @@ namespace RawFileReaderDotNetExample
             bool readScanInformation = false;
             bool getSpectrum = true;
 
-            DirectoryInfo di = new DirectoryInfo("/Users/jrh6296/Downloads/Oligomers March 2023/");
+            DirectoryInfo di = new DirectoryInfo("/Users/jameshoward/Documents/Programming/PeakPicker/DesiSequencer/data");
             FileInfo[] files = di.GetFiles("*.RAW");
             foreach (FileInfo file in files)
             {

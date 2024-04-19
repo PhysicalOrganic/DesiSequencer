@@ -4,6 +4,8 @@
 import sys
 sys.path.append("..")
 
+from pathlib import Path
+
 from DesiSequencer import readRawFile
 from DesiSequencer.sequence import sequenceFromDesiFile
 
@@ -19,9 +21,12 @@ if __name__ == "__main__":
 
     # Convert rawfile, this is done using the python version, but the resulting
     # file can be made using the C# code as well (stated in README)
-    converted_file = readRawFile('./examples/test.RAW')
+    #converted_file = readRawFile('./examples/test.RAW')
+    converted_file = Path('./data/test.txt')
 
     # Sequence the converted file
-    sequenceFromDesiFile(converted_file, endcap_mass = endcap_mass, endcap_name = endcap_name, debug=debug)
+    sequenceFromDesiFile(converted_file,
+                         endcap_mass = endcap_mass,
+                         endcap_name = endcap_name,
+                         debug=debug)
 
-    

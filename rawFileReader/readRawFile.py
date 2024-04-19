@@ -3,6 +3,9 @@ import numpy as np
 
 from pathlib import Path
 
+from pythonnet import load
+load("coreclr")
+
 import clr
 
 # Add references to the DLLs
@@ -22,10 +25,10 @@ from ThermoFisher.CommonCore.Data.Business import Device
 from ThermoFisher.CommonCore.Data.Interfaces import IRawDataExtended
 
 def getSpectrum(
-        rawFile: IRawDataExtended, 
-        scanNumber: int, 
-        scanFilter = None, 
-        outputData: bool = False, 
+        rawFile: IRawDataExtended,
+        scanNumber: int,
+        scanFilter = None,
+        outputData: bool = False,
         verbose: bool = False):
     '''Gets the spectrum from the RAW file. Modified by James.
 
@@ -48,7 +51,7 @@ def getSpectrum(
     # type of data, different methods will be used to read the data.  While the ReadAllSpectra
     # method demonstrates reading the data using the Scan.FromFile method, generating the
     # Scan object takes more time and memory to do, so that method isn't optimum.
-    
+
     if scanStatistics.IsCentroidScan:
         # Get the centroid (label) data from the RAW file for this
         # scan
@@ -83,9 +86,9 @@ def getSpectrum(
             print()
 
 def getSpectrum(
-        rawFile: IRawDataExtended, 
-        scanNumber: int, 
-        scanFilter = None, 
+        rawFile: IRawDataExtended,
+        scanNumber: int,
+        scanFilter = None,
         verbose: bool = False):
     '''Gets the spectrum from the RAW file. Modified by James.
 
@@ -108,7 +111,7 @@ def getSpectrum(
     # type of data, different methods will be used to read the data.  While the ReadAllSpectra
     # method demonstrates reading the data using the Scan.FromFile method, generating the
     # Scan object takes more time and memory to do, so that method isn't optimum.
-    
+
     if scanStatistics.IsCentroidScan:
         # Get the centroid (label) data from the RAW file for this
         # scan
@@ -143,7 +146,7 @@ def getSpectrum(
                 i, segmentedScan.Positions[i], segmentedScan.Intensities[i]))
             print()
 
-def readRawFile(filename: str, 
+def readRawFile(filename: Path,
                 outPath: Path = None) -> Path:
     '''
     Python wrapper for writing spectral data from the DESI
@@ -151,8 +154,8 @@ def readRawFile(filename: str,
 
     Parameters
     ----------
-    filename: str
-        Relative directory path to the raw file.
+    filename: Path
+        Path to the raw file.
 
     outPath: Path
         Path which the data will be written to. Defaults to
@@ -161,12 +164,14 @@ def readRawFile(filename: str,
     Returns
     ----------
     outPath: Path
-        This is just returned as a convenience in your script. 
+        This is just returned as a convenience in your script.
 
     '''
+    if isinstance(filename, str):
+        filename = Path(filename)
 
     # Create the IRawDataPlus object for accessing the RAW file
-    rawFile = RawFileReaderAdapter.FileFactory(filename)
+    rawFile = RawFileReaderAdapter.FileFactory(filename.name)
 
     # Get the number of instruments (controllers) present in the RAW file
     # and set the selected instrument to the MS instrument, first instance
@@ -180,7 +185,7 @@ def readRawFile(filename: str,
 
     n_scans = rawFile.RunHeaderEx.SpectraCount
 
-    with open(outPath, 'w') as o:
+    with open(outPath, 'w', encoding='utf-8') as o:
         for i in range(n_scans):
             s = getSpectrum(rawFile, i + 1, rawFile.GetFilterForScanNumber(i + 1), False)
             for pair in s:
