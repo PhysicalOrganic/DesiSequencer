@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import sklearn
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 import matplotlib.pyplot as plt
@@ -166,7 +167,7 @@ def playGround(
 
 def findLargestMassPeak(
         scanData: pd.DataFrame,
-        threshold: float = 0.02,
+        threshold: float = 0.03,
         bandwidth: float = 3.5,
         debug = False) -> float:
     '''
@@ -254,6 +255,15 @@ def findLargestMassPeak(
 
     else:
         raise Exception('Code was not made to properly handle min first.')
+
+    #if debug:
+    #    fig, axes = plt.subplots(1,2)
+    #    
+    #    axes[0].plot(scanData['Mass'], y, lw=0.5)
+    #    axes[0].scatter([parent_peak], [parent_peak_intensity], color='red')
+    #    axes[1].plot(s, e, color = 'blue')
+    #    plt.savefig('./debug-parent-peak_ident.png', dpi=600)
+    #    plt.clf()
 
     return parent_peak
 

@@ -17,7 +17,9 @@ by the Python code to extract sequence information.
     3. Run the program. The output will be a text file with the scan data which can be processed,
        plotted, and used to determine sequence information.
 
-    4. Use the remaining Python scripts of `DesiSequencer` to parse the converted data files.
+    4. Use the remaining Python scripts of `DesiSequencer` to parse the converted data files. <-- Past this section is a little fuzzy-->
+
+    4.1 - Activate desi environment with `conda activate desi`
 
     5. In `sequence.py`, scroll down the the "if __name__ == "__main__": portion of the script.
        You can enter the path to the converted datafile here.
@@ -53,3 +55,6 @@ pip install scikit-learn
 install C# in vscode
 
 pip install xlsxwriter
+
+# TODO
+matplotlib clf() for plotting mutliple spots

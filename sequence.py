@@ -5,10 +5,10 @@ from pathlib import Path
 
 import numpy as np
 
-from utils import MonomerMasses
-from plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
+from .utils import MonomerMasses
+from .plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
 
-from massCluster import findLargestMassPeak
+from .massCluster import findLargestMassPeak
 
 def getArgs():
     pass
@@ -228,9 +228,6 @@ def sequenceFromDesiFile(
     if endcap_name is None:
         endcap_name = 'END CAP (UNSPECIFIED)'
 
-    # Initiate plotting here so we can plot within other functions
-    fig, ax = plt.subplots(1,1, figsize = (12,6))
-
     name = str(file.stem)
 
     if debug:
@@ -259,6 +256,7 @@ def sequenceFromDesiFile(
     for i in CombinedScans:
         AverageScanIntensities.append(getAverageIntensity(i, mass_thresh=500))
 
+
     #PlotSpots(len(CombinedScans), AverageScanIntensity)
 
     # identify the spots based on intensity
@@ -266,7 +264,7 @@ def sequenceFromDesiFile(
     TempSpots = []
 
     # this is the scan intensity that you check to see what is noise and what is oligos
-    IntensityThreshold = 20000
+    IntensityThreshold = 5000#20000
 
     # this is how many scans should make up one spot to get rid of the spikes there sometimes are
     SpotWidth = 6
@@ -291,16 +289,35 @@ def sequenceFromDesiFile(
     # Is the length of the number of spots
     CombinedSpotScans = []
 
-    # Iterate through spot scans
-    for i in IsolateSpots: # For every list of scans (dictionaries of mass:intensity pairs), these are combined because they represent a single sample
-        BasePeak = CombinedScans[i[0]] # This gets the mass scan of the first peak (i[0] is the first index of the peak)
-        for j in range (1, len(i)): # Each peak has multiple indices over which it exists. Iterate over them
-            for k in CombinedScans[j].keys(): # Get the other
+    # Iterate through the groups of 
+    # For every list of scans (dictionaries of mass:intensity pairs), these are combined because they represent a single sample or spot
+    for i, scan_group in enumerate(IsolateSpots): 
+        
+        # This gets the mass scan of the first peak (i[0] is the first index of the peak)
+        BasePeak = CombinedScans[scan_group[0]] 
+       
+       # Each peak has multiple indices over which it exists. Iterate over them
+       # For every scan that corresponds to a peak in the total ion count spectrum
+        for j in scan_group: 
+
+            # For every mass: intensity pair in that scan
+            for k in CombinedScans[j].keys():
+                
+                # If the mass is already in the "BasePeak", increase it's intensity
                 if k in BasePeak.keys():
                     BasePeak[k] += CombinedScans[j][k] # I think we are adding the intensity of those masses from each scan to a single
                 else:
                     BasePeak[k] = CombinedScans[j][k]
         CombinedSpotScans.append(BasePeak)
+
+    fig, ax = plt.subplots(1,1)
+    ax.plot(np.arange(0,len(AverageScanIntensities)), AverageScanIntensities, color='lightgray')
+    for _i, scan_group in enumerate(IsolateSpots):
+        ax.plot(scan_group, [AverageScanIntensities[z] for z in scan_group])
+    ax.set_title('DESI scan of total intensity')
+    ax.set_xlabel('Scan number (roughly equal to time)')
+    ax.set_ylabel('Total scan intensity (ion count??)')
+    plt.savefig('./debug-scan.png', dpi=600)
 
     # This contains all of the dataframes for each spot
     # which we will use to output the results later
@@ -308,17 +325,23 @@ def sequenceFromDesiFile(
     dataframes_for_spots = []
     ms_spectra_for_spots = []
 
+
     # Iterate over every spot (which is the combined intensities over all scans which were done for that spot)
     for i, x in enumerate(CombinedSpotScans):
+    
+        
+        # Initiate plotting here so we can plot within other functions
+        fig, ax = plt.subplots(1,1, figsize = (12,6))
 
         ScansTemp = pd.DataFrame(list(x.items()), columns=['Mass', 'Intensity'])
-
+        print(ScansTemp)
         # Find the parent oligomer mass
-        parent_mass = findLargestMassPeak(scanData=ScansTemp, debug=debug)
+        parent_mass = findLargestMassPeak(scanData=ScansTemp, threshold = 0.07, debug=debug)
         parent_mass_intensity = float(ScansTemp[ScansTemp["Mass"] == parent_mass]['Intensity'].iloc[0])
 
-        if debug:
-            print(f'Largest mass in spectrum: {parent_mass}\tIntensity: {parent_mass_intensity}\n')
+        #if i == 1:
+        #    exit('DEBUG EXITING')
+        print(f'SPOT {i}: Largest mass in spectrum: {parent_mass}\tIntensity: {parent_mass_intensity}\n')
 
         # Find the peaks
         FoundSpectraMassesIntensity = findPeaks(scanData = ScansTemp, parent_mass = parent_mass, debug=debug)
@@ -329,10 +352,17 @@ def sequenceFromDesiFile(
         # Match the list of masses to a particular monomer loss
         MassMatches = MatchMasstoMonomer(MonomerMasses, FoundSpectraMassesIntensity, endcap_mass=endcap_mass, endcap_name=endcap_name)
 
+        print(f'[DEBUG] MassMatches=')
+        print(MassMatches)
+
         # This is just stored for printing
         results = []
         # Iterate over the masses
         for j, mass_found_in_spectrum in enumerate(FoundSpectraMasses):
+            print(f'[DEBUG] j={j} mass_found_in_spectrum={mass_found_in_spectrum}')
+            if j == len(MassMatches):
+                print(f'[WARNING] There were {j} or more masses identified in spectrum while we have {len(MassMatches)} mass matches')
+                break
             if MassMatches[j] == endcap_name:
                 results.append([j, endcap_mass, endcap_name + '(endcap)'])
             else:
@@ -352,7 +382,7 @@ def sequenceFromDesiFile(
         ax.stem(FoundSpectraMassesIntensity.keys(), FoundSpectraMassesIntensity.values(), linefmt='red', markerfmt='') #, width=1.5
 
         if debug: # Label parent peak
-            ax.text(parent_mass*1.005, parent_mass_intensity * 1.005, 'Parent peak', color='red')
+            ax.text(parent_mass*1.005, parent_mass_intensity * 1.005, f'Parent peak {parent_mass}', color='red')
 
         tmp_image_path = Path(file.parent / str(name + f'_spot_{i + 1}' + ".png"))
         plt.savefig(tmp_image_path, format='png', dpi = 600)

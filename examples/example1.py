@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # Convert rawfile, this is done using the python version, but the resulting
     # file can be made using the C# code as well (stated in README)
     #converted_file = readRawFile('./examples/test.RAW')
-    converted_file = Path('./data/test.txt')
+    converted_file = Path('/Users/admin-js99925/Documents/ANSLYN GROUP/DESI april 2024/04172024_oligomers_CVprofiling_A-F_1sttry.txt')
 
     # Sequence the converted file
     sequenceFromDesiFile(converted_file,
