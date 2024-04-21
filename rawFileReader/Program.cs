@@ -6,10 +6,10 @@
 // read our RAW files using the RAWFileReader .Net library.  This example uses only a fraction
 // of the functions available in the RawFileReader library.  Please consult the RawFileReader
 // documentation for a complete list of methods available.
-// 
-// This code has been compiled and tested using Visual Studio 2013 Update 5, Visual Studio 
-// 2015 Update 3, Visual Studio 2017 Update 2, Visual Studio MAC, and MonoDevelop.  Additional 
-// tools used include Resharper 2017.1.  This application has been tested with .Net Framework 4.5.1, 
+//
+// This code has been compiled and tested using Visual Studio 2013 Update 5, Visual Studio
+// 2015 Update 3, Visual Studio 2017 Update 2, Visual Studio MAC, and MonoDevelop.  Additional
+// tools used include Resharper 2017.1.  This application has been tested with .Net Framework 4.5.1,
 // 4.5.2, 4.6, 4.6.1, 4.6.2, and 4.7.
 //
 // Questions about the program can be directed to jim.shofstahl@thermofisher.com
@@ -206,7 +206,7 @@ namespace RawFileReaderDotNetExample
                         return;
                     }
 
-                    // Get the number of instruments (controllers) present in the RAW file and set the 
+                    // Get the number of instruments (controllers) present in the RAW file and set the
                     // selected instrument to the MS instrument, first instance of it
                     Console.WriteLine("The RAW file has data from {0} instruments" + rawFile.InstrumentCount);
 
@@ -297,7 +297,7 @@ namespace RawFileReaderDotNetExample
                         ReadScanInformation(rawFile, firstScanNumber, lastScanNumber, true);
                     }
 
-                    // Get a spectrum from the RAW file.  
+                    // Get a spectrum from the RAW file.
                     if (getSpectrum)
                     {
                         string filepath = rawFile.FileName;
@@ -306,17 +306,17 @@ namespace RawFileReaderDotNetExample
                         //File.AppendAllText(FilePath, "[");
                         for (int i = firstScanNumber; i < lastScanNumber; i++)
                         {
-                            
+
                             GetSpectrum(rawFile, i, true);
                             File.AppendAllText(FilePath, "|");
 
                         }
 
-                        
+
 
                     }
 
-                    // Get a average spectrum from the RAW file for the first 15 scans in the file.  
+                    // Get a average spectrum from the RAW file for the first 15 scans in the file.
                     if (averageScans)
                     {
                         GetAverageSpectrum(rawFile, firstScanNumber, lastScanNumber, true);
@@ -351,7 +351,7 @@ namespace RawFileReaderDotNetExample
         }
 
         /// <summary>
-        /// Gets the average spectrum from the RAW file.  
+        /// Gets the average spectrum from the RAW file.
         /// </summary>
         /// <param name="rawFile">
         /// The RAW file being read
@@ -444,7 +444,7 @@ namespace RawFileReaderDotNetExample
             // Define the settings for getting the Base Peak chromatogram
             ChromatogramTraceSettings settings = new ChromatogramTraceSettings(TraceType.BasePeak);
 
-            // Get the chromatogram from the RAW file. 
+            // Get the chromatogram from the RAW file.
             var data = rawFile.GetChromatogramData(new IChromatogramSettings[] { settings }, startScan, endScan);
 
             // Split the data into the chromatograms
@@ -519,7 +519,7 @@ namespace RawFileReaderDotNetExample
                 }
             }
 
-            // Create the inclusion/exclusion list 
+            // Create the inclusion/exclusion list
             List<InclusionListItem> inclusionList = new List<InclusionListItem>();
 
             // Convert each line from the inclusion/exclusion mass table into InclusionListItem objects
@@ -613,7 +613,7 @@ namespace RawFileReaderDotNetExample
 
                 // Console.WriteLine("Spectrum (centroid/label) {0} - {1} points", scanNumber, centroidStream.Length);
 
-                // Print the spectral data (mass, intensity, charge values).  Not all of the information in the high resolution centroid 
+                // Print the spectral data (mass, intensity, charge values).  Not all of the information in the high resolution centroid
                 // (label data) object is reported in this example.  Please check the documentation for more information about what is
                 // available in high resolution centroid (label) data.
                 if (outputData)
@@ -653,7 +653,7 @@ namespace RawFileReaderDotNetExample
 
                 Console.WriteLine("Spectrum (normal data) {0} - {1} points", scanNumber, segmentedScan.Positions.Length);
                 var DataForFile = "";
-               
+
 
                 // Print the spectral data (mass, intensity values)
                 if (outputData)
@@ -671,7 +671,7 @@ namespace RawFileReaderDotNetExample
 
                     }
                 }
-               
+
             }
         }
 
@@ -808,7 +808,7 @@ namespace RawFileReaderDotNetExample
                     var ionizationMode = scanFilter.IonizationMode;
                     var order = scanFilter.MSOrder;
 
-                    // Get the trailer extra data for this scan and then look for the monoisotopic m/z value in the 
+                    // Get the trailer extra data for this scan and then look for the monoisotopic m/z value in the
                     // trailer extra data list
                     var trailerData = rawFile.GetTrailerExtraInformation(scan);
 
