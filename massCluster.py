@@ -167,7 +167,7 @@ def playGround(
 
 def findLargestMassPeak(
         scanData: pd.DataFrame,
-        threshold: float = 0.03,
+        threshold: float = 0.01,
         bandwidth: float = 3.5,
         debug = False) -> float:
     '''
@@ -199,14 +199,18 @@ def findLargestMassPeak(
     parent_peak: float
         The m/z value of the parent peak selected by this function
     '''
-
     y = scanData['Intensity'].to_numpy()
 
     # Get the threshold value
     threshold = threshold * max(y)
+    #print(scanData[scanData['Mass'] >= scanData['Mass'].max() * 0.8])
 
     # Get a copy of the df above the intensity threshold
     tmp_df = scanData[scanData['Intensity'] > threshold].copy(deep=True)
+
+    #if debug:
+    #    print(f'[DEBUG] In findLargestMassPeak: threshold={threshold} counts')
+    #    print(tmp_df)
 
     # 1D array of masses
     a = tmp_df['Mass'].to_numpy()
@@ -258,7 +262,7 @@ def findLargestMassPeak(
 
     #if debug:
     #    fig, axes = plt.subplots(1,2)
-    #    
+    #
     #    axes[0].plot(scanData['Mass'], y, lw=0.5)
     #    axes[0].scatter([parent_peak], [parent_peak_intensity], color='red')
     #    axes[1].plot(s, e, color = 'blue')

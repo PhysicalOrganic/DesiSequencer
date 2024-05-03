@@ -38,7 +38,7 @@ MonomerMassesTenth = {
             'Leu': 143.10,
             'Phe': 177.10,
             'Ser': 131.10,
-            'TyrOMe': 207.10, 
+            'TyrOMe': 207.10,
             'Tyr(OH)':193.10}
 
 MonomerMasses = {
@@ -63,3 +63,26 @@ MonomerMasses = {
             207:'TyrOMe',
             209:'D2TyrOMe',
             }
+
+MonomerMasses = {
+    101.0477:'Ala',
+    103.0602:'D2Ala',
+    115.0633:'Abu',
+    117.0759:'D2Abu',
+    127.0633:'Gly(allyl)',
+    129.0759:'D2Allyl',
+    131.0582:'Ser',
+    133.0708:'D2Ser',
+    143.0946:'Leu',
+    145.1072:'D2Leu',
+    177.0790:'Phe',
+    179.0915:'D2Phe',
+    183.1259:'Cha',
+    185.1385:'D2Cha',
+    191.0949:'HoPhe',
+    193.0739:'Tyr(OH)',
+    193.1072:'D2HoPhe',
+    195.0864:'D2Tyr(OH)',
+    207.0895:'TyrOMe',
+    209.1021:'D2TyrOMe',
+}

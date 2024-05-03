@@ -5,13 +5,50 @@ from pathlib import Path
 
 import numpy as np
 
-from .utils import MonomerMasses
-from .plotting import plotTwoMassSpectra, plotSpots, plotMassSpectrum
+from sklearn.neighbors import KernelDensity
+from scipy.signal import argrelextrema
 
-from .massCluster import findLargestMassPeak
+from utils import MonomerMasses
+from plotting import plotTwoMassSpectra, plotMassSpectrum, plot_spots
+from massCluster import findLargestMassPeak
+
 
 def getArgs():
     pass
+
+def get_spots(intensities: list[float],
+              threshold: float,
+              spot_width: int) -> list[int]:
+    # identify the spots based on intensity
+    IsolateSpots = []
+    TempSpots = []
+    #for i, intensity in enumerate(intensities): # Go through all avg intensities
+    #    if intensity > threshold and len(TempSpots) < spot_width: # If it is above the threshold and #TODO less than the 9th scan intensity?
+    #        TempSpots.append(i) # Add it to the temporary spots
+    #    elif len(TempSpots) >= spot_width: # If the count is above or equal to the spot width (6 currently)
+    #        IsolateSpots.append(TempSpots) # Add this to the isolate spots
+    #        TempSpots = [] # Reset the temp spots?
+    count = 0
+    for i, intensity in enumerate(intensities): # Go through all avg intensities
+        if intensity > threshold and count < 9: # If it is above the threshold and #TODO less than the 9th scan intensity?
+            count += 1
+            TempSpots.append(i) # Add it to the temporary spots
+        elif count >= spot_width: # If the count is above or equal to the spot width (6 currently)
+            IsolateSpots.append(TempSpots) # Add this to the isolate spots
+            TempSpots = [] # Reset the temp spots?
+            count = 0
+
+
+    #for i, intensity in enumerate(AverageScanIntensities): # Go through all avg intensities
+    #    if intensity > IntensityThreshold and count < 9: # If it is above the threshold and #TODO less than the 9th scan intensity?
+    #        count += 1
+    #        TempSpots.append(i) # Add it to the temporary spots
+    #    elif count >= SpotWidth: # If the count is above or equal to the spot width (6 currently)
+    #        IsolateSpots.append(TempSpots) # Add this to the isolate spots
+    #        TempSpots = [] # Reset the temp spots?
+    #        count = 0
+
+    return IsolateSpots
 
 def CleanUpScan(
         scan: str,
@@ -65,7 +102,7 @@ def getAverageIntensity(
 def findPeaks(
     scanData: pd.DataFrame,
     parent_mass: float,
-    intensity_threshold: int = 0.02,
+    intensity_threshold: float = 0.10,
     minimum_mass: int = 250,
     debug = True): #110000
     '''
@@ -85,12 +122,12 @@ def findPeaks(
         n - x oligomers resulting from sequencing. x represents the sequence
         iteration.
 
-    intensity_threshold: float (default = 0.02)
+    intensity_threshold: float (default = 0.05)
         The percentage of intensity of the largest intensity signal
         within the scanData["Intensity"] column above which signals
         are considered for selection.
 
-        Default is 2% of maximum intensity signal
+        Default is 5% of maximum intensity signal
 
     minimum_mass: int (default = )
         The mass below which signals are considered insignificant.
@@ -104,15 +141,24 @@ def findPeaks(
     '''
 
     # Convert intensity threshold to count
+    intensity_percent = intensity_threshold
     intensity_threshold = intensity_threshold * scanData['Intensity'].max()
 
     # Get the largest mass in the spectrum
+    # This is the parent peak of the entire spectrum
     LargestMassPeakIntensity = float(scanData[scanData['Mass'] == parent_mass]['Intensity'].iloc[0])
+
+    if debug:
+        print(f'[DEBUG] In findPeaks: intensity_percent = {intensity_percent}')
+        print(f'[DEBUG] In findPeaks: intensity_threshold = {intensity_threshold}')
+        print(f'[DEBUG] In findPeaks: LargestMassPeakIntensity = {LargestMassPeakIntensity} counts.')
 
     # dictionary containing identity of monomers and the mass at which they are found
     monomers = {}
 
-    # First "monomer" is not actually a monomer, it is the mass:intensity pair of the oligo which will lose a monomer once sequenced.
+    # First "monomer" is not actually a monomer, it is the mass:intensity pair
+    # of the oligo which will lose a monomer once sequenced.
+    # i.e., this is the parent peak
     monomers[parent_mass] = LargestMassPeakIntensity
 
     # Get the lighest and heaviest monomers
@@ -122,34 +168,73 @@ def findPeaks(
     current_peak = parent_mass
     while True:
 
-        lower_bound = current_peak - heaviest_monomer
-        upper_bound = current_peak - lightest_monomer
+        # Get the window of signals that we are looking at in tmp_df
+        lower_bound = current_peak - (heaviest_monomer * 1.05)
+        upper_bound = current_peak - (lightest_monomer * 0.95)
+
+        # Primary exit condition
+        if upper_bound <= minimum_mass:
+            if debug:
+                print(f'[DEBUG] Minimum mass ({minimum_mass}) was surpassed with lower_bound of {lower_bound}')
+            break
 
         tmp_df = scanData[(scanData['Mass'] >= lower_bound) & (scanData['Mass'] <= upper_bound)]
+
+        # Filter out low intensity signals in the window
+        #print(f'WARNING: for debugging: only considering masses within 50% of max signal in window')
+        tmp_df = tmp_df[tmp_df['Intensity'] >= (tmp_df['Intensity'].max() * intensity_percent)] # Change 0.5 here to intensity_percent to return to normal
         #print(tmp_df.shape, ScanData.shape, 'lower bound',current_peak - heaviest_monomer, 'upper bound', current_peak - lightest_monomer)
 
-        if debug:
-            if len(monomers) % 2 == 0:
-                color = 'purple'
-            else:
-                color = 'green'
+        # Add the range to the figure
+        if len(monomers) % 2 == 0:
+            color = 'purple'
+        else:
+            color = 'green'
 
-            h = scanData[(scanData['Mass'] >= lower_bound) & (scanData['Mass'] <= upper_bound)].Intensity.max() * 1.05
-            rect = plt.Rectangle((lower_bound, 0), width = upper_bound - lower_bound, height = h, color=color, alpha = 0.3)
-            plt.gca().add_patch(rect)
+        h = scanData[(scanData['Mass'] >= lower_bound) & (scanData['Mass'] <= upper_bound)].Intensity.max() * 1.05
+        rect = plt.Rectangle((lower_bound, 0), width = upper_bound - lower_bound, height = h, color=color, alpha = 0.3)
+        plt.gca().add_patch(rect)
 
+        # If the df is empty, stop sequencing
         if tmp_df.empty:
+            print(f'tmp_df is empty')
             break
 
-        # Get the new largest peak
-        current_peak = float(tmp_df[tmp_df['Intensity'] == tmp_df['Intensity'].max()]['Mass'].iloc[0])
-        monomers[current_peak] = float(tmp_df[tmp_df['Mass'] == current_peak]['Intensity'].iloc[0])
+        # Go through each of the masses and monomers
+        for mass, monomer_identity in MonomerMasses.items():
+            # The scores are the difference between
+            tmp_df[f'delta_{monomer_identity}'] = abs((current_peak  - tmp_df['Mass']) - mass)
 
-        if lower_bound <= minimum_mass:
-            break
+        #print(f'Minimum values along axes 0: \n{tmp_df.min(axis=0)}')
+        #print(f'Minimum values along axes 1: \n{tmp_df.min(axis=1)}')
+        # Get the minimum of each row
+        tmp_df['min'] = tmp_df.min(axis=1)
+        tmp_df['score'] = tmp_df['min'] * (1 / (tmp_df['Intensity'] * 2)) #
+        tmp_df['score'] = tmp_df['score'] * (1 / tmp_df['score'].max()) # Normalize the score to 1
+
+        if debug:
+            print(f'[DEBUG] Scoring DataFrame for monomer {len(monomers)}')
+            print(f'[DEBUG] Selecting loss of monomer from previous mass (i.e., current_peak) {current_peak}')
+
+        # Select the column that has th lowest delta value # OLD, didn't work because there were some that were close
+        #TODO Warn users if there are similar or other deltas close to the absolute minimum
+        #global_min_column = tmp_df[[x for x in tmp_df.columns if 'delta' in x]].min().idxmin()
+        #current_peak = float(tmp_df.loc[tmp_df[global_min_column] == tmp_df[global_min_column].min(), 'Mass'].iloc[0])
+
+        # Get the monomer identity? Might not be necessary
+        global_min_column = tmp_df[[x for x in tmp_df.columns if 'delta' in x]].min().idxmin()
+        # Reset current peak
+        current_peak = float(tmp_df.loc[tmp_df['score'] == tmp_df['score'].min(), 'Mass'].iloc[0])
+        monomers[current_peak] = float(tmp_df.loc[tmp_df['Mass'] == current_peak, 'Intensity'].iloc[0])
+
+        if debug:
+            pass
+            #print(tmp_df[[x for x in tmp_df.columns if 'Ser' in x or 'Phe' in x or 'Leu' in x or 'Cha' in x or 'Tyr' in x or x in ['Mass', 'Intensity', 'min','score']]])
+            #print(f'Global min column: {MatchMasstoMonomer()}')
+            #TODO Match a single mass to a monomer
 
     if debug:
-        print(f'Selected masses: {list(monomers.keys())}\n')
+        print(f'[DEBUG] In findPeaks: Selected masses: {list(monomers.keys())}')
 
     return monomers
 
@@ -221,7 +306,7 @@ def sequenceFromDesiFile(
         debug: bool = False
         ):
     '''
-    Takes a converted file (.RAW to .out) and
+    Takes a converted file (.RAW to .txt) and
     sequences it.
     '''
 
@@ -248,36 +333,26 @@ def sequenceFromDesiFile(
             CombinedScans.append(NewScan)
 
     if debug:
-        print("Number of Scans (time points):", len(CombinedScans))
+        print("Number of Scans in the entire data file:", len(CombinedScans))
 
+    # Get the average scan intensities of each scan to identify the spots
     AverageScanIntensities = []
 
     # plot the average intensity of each scan to visualize spots
     for i in CombinedScans:
         AverageScanIntensities.append(getAverageIntensity(i, mass_thresh=500))
 
-
-    #PlotSpots(len(CombinedScans), AverageScanIntensity)
-
-    # identify the spots based on intensity
-    IsolateSpots = []
-    TempSpots = []
-
     # this is the scan intensity that you check to see what is noise and what is oligos
-    IntensityThreshold = 5000#20000
+    IntensityThreshold = 10000
 
     # this is how many scans should make up one spot to get rid of the spikes there sometimes are
     SpotWidth = 6
+    IsolateSpots = get_spots(intensities=AverageScanIntensities,
+                             threshold=IntensityThreshold,
+                             spot_width=SpotWidth)
 
-    count = 0
-    for i, intensity in enumerate(AverageScanIntensities): # Go through all avg intensities
-        if intensity > IntensityThreshold and count < 9: # If it is above the threshold and #TODO less than the 9th scan intensity?
-            count += 1
-            TempSpots.append(i) # Add it to the temporary spots
-        elif count >= SpotWidth: # If the count is above or equal to the spot width (6 currently)
-            IsolateSpots.append(TempSpots) # Add this to the isolate spots
-            TempSpots = [] # Reset the temp spots?
-            count = 0
+    print(f'WARNING: Debugging the scan with manual spot picking.')
+    IsolateSpots = [[0, 1, 2, 3, 4, 5], [11, 12, 13, 14, 15, 16, 17], [23, 24, 25, 26, 27, 28, 29, 30], [37, 38, 39, 40, 41, 42, 43, 44, 45], [49, 50, 51, 52, 53, 54, 55, 56, 57], [62, 63, 64, 65, 66, 67, 68]]
 
     if len(IsolateSpots) != 1:
         print(f'Found {len(IsolateSpots)} different spots in the data file.\n')
@@ -289,20 +364,20 @@ def sequenceFromDesiFile(
     # Is the length of the number of spots
     CombinedSpotScans = []
 
-    # Iterate through the groups of 
+    # Iterate through the groups of
     # For every list of scans (dictionaries of mass:intensity pairs), these are combined because they represent a single sample or spot
-    for i, scan_group in enumerate(IsolateSpots): 
-        
+    for i, scan_group in enumerate(IsolateSpots):
+
         # This gets the mass scan of the first peak (i[0] is the first index of the peak)
-        BasePeak = CombinedScans[scan_group[0]] 
-       
+        BasePeak = CombinedScans[scan_group[0]]
+
        # Each peak has multiple indices over which it exists. Iterate over them
        # For every scan that corresponds to a peak in the total ion count spectrum
-        for j in scan_group: 
+        for j in scan_group:
 
             # For every mass: intensity pair in that scan
             for k in CombinedScans[j].keys():
-                
+
                 # If the mass is already in the "BasePeak", increase it's intensity
                 if k in BasePeak.keys():
                     BasePeak[k] += CombinedScans[j][k] # I think we are adding the intensity of those masses from each scan to a single
@@ -310,14 +385,10 @@ def sequenceFromDesiFile(
                     BasePeak[k] = CombinedScans[j][k]
         CombinedSpotScans.append(BasePeak)
 
-    fig, ax = plt.subplots(1,1)
-    ax.plot(np.arange(0,len(AverageScanIntensities)), AverageScanIntensities, color='lightgray')
-    for _i, scan_group in enumerate(IsolateSpots):
-        ax.plot(scan_group, [AverageScanIntensities[z] for z in scan_group])
-    ax.set_title('DESI scan of total intensity')
-    ax.set_xlabel('Scan number (roughly equal to time)')
-    ax.set_ylabel('Total scan intensity (ion count??)')
-    plt.savefig('./debug-scan.png', dpi=600)
+    if debug:
+        plot_spots(average_scan_intensities=AverageScanIntensities,
+                   isolated_spots=IsolateSpots,
+                   save=Path(file.parent / f'{file.stem}_identified_spots.png'))
 
     # This contains all of the dataframes for each spot
     # which we will use to output the results later
@@ -325,26 +396,24 @@ def sequenceFromDesiFile(
     dataframes_for_spots = []
     ms_spectra_for_spots = []
 
-
     # Iterate over every spot (which is the combined intensities over all scans which were done for that spot)
     for i, x in enumerate(CombinedSpotScans):
-    
-        
+
         # Initiate plotting here so we can plot within other functions
         fig, ax = plt.subplots(1,1, figsize = (12,6))
 
         ScansTemp = pd.DataFrame(list(x.items()), columns=['Mass', 'Intensity'])
-        print(ScansTemp)
+
         # Find the parent oligomer mass
         parent_mass = findLargestMassPeak(scanData=ScansTemp, threshold = 0.07, debug=debug)
         parent_mass_intensity = float(ScansTemp[ScansTemp["Mass"] == parent_mass]['Intensity'].iloc[0])
 
         #if i == 1:
         #    exit('DEBUG EXITING')
-        print(f'SPOT {i}: Largest mass in spectrum: {parent_mass}\tIntensity: {parent_mass_intensity}\n')
+        print(f'SPOT {i}: Parent mass in spectrum: {parent_mass}\tIntensity: {parent_mass_intensity}\n')
 
         # Find the peaks
-        FoundSpectraMassesIntensity = findPeaks(scanData = ScansTemp, parent_mass = parent_mass, debug=debug)
+        FoundSpectraMassesIntensity = findPeaks(scanData=ScansTemp, parent_mass=parent_mass, debug=debug)
 
         # Convert the mass:intensity pairs into list of masses
         FoundSpectraMasses = list(FoundSpectraMassesIntensity.keys())
