@@ -15,7 +15,7 @@ if __name__ == "__main__":
     # Convert rawfile, this is done using the python version, but the resulting
     # file can be made using the C# code as well (stated in README)
     #converted_file = readRawFile('./examples/test.RAW')
-    converted_file = Path('./julia_data/04172024_oligomers_CVprofiling_A-F_1sttry.txt')
+    converted_file = Path('./julia_data/04172024_oligomers_CVprofiling_A-F_3rdtry.txt')
 
     # Sequence the converted file
     sequenceFromDesiFile(converted_file,

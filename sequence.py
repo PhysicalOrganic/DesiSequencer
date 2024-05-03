@@ -351,8 +351,8 @@ def sequenceFromDesiFile(
                              threshold=IntensityThreshold,
                              spot_width=SpotWidth)
 
-    print(f'WARNING: Debugging the scan with manual spot picking.')
-    IsolateSpots = [[0, 1, 2, 3, 4, 5], [11, 12, 13, 14, 15, 16, 17], [23, 24, 25, 26, 27, 28, 29, 30], [37, 38, 39, 40, 41, 42, 43, 44, 45], [49, 50, 51, 52, 53, 54, 55, 56, 57], [62, 63, 64, 65, 66, 67, 68]]
+    #print(f'WARNING: Debugging the scan with manual spot picking.')
+    #IsolateSpots = [[0, 1, 2, 3, 4, 5], [11, 12, 13, 14, 15, 16, 17], [23, 24, 25, 26, 27, 28, 29, 30], [37, 38, 39, 40, 41, 42, 43, 44, 45], [49, 50, 51, 52, 53, 54, 55, 56, 57], [62, 63, 64, 65, 66, 67, 68]]
 
     if len(IsolateSpots) != 1:
         print(f'Found {len(IsolateSpots)} different spots in the data file.\n')
@@ -368,7 +368,8 @@ def sequenceFromDesiFile(
     # For every list of scans (dictionaries of mass:intensity pairs), these are combined because they represent a single sample or spot
     for i, scan_group in enumerate(IsolateSpots):
 
-        # This gets the mass scan of the first peak (i[0] is the first index of the peak)
+        # This gets the mass scan of the first peak (i[0] is the
+        # first index of the peak)
         BasePeak = CombinedScans[scan_group[0]]
 
        # Each peak has multiple indices over which it exists. Iterate over them
@@ -450,8 +451,7 @@ def sequenceFromDesiFile(
         ax.set_xlabel(r'$m/z$')
         ax.stem(FoundSpectraMassesIntensity.keys(), FoundSpectraMassesIntensity.values(), linefmt='red', markerfmt='') #, width=1.5
 
-        if debug: # Label parent peak
-            ax.text(parent_mass*1.005, parent_mass_intensity * 1.005, f'Parent peak {parent_mass}', color='red')
+        ax.text(parent_mass*1.005, parent_mass_intensity * 1.005, f'Parent peak {parent_mass}', color='red')
 
         tmp_image_path = Path(file.parent / str(name + f'_spot_{i + 1}' + ".png"))
         plt.savefig(tmp_image_path, format='png', dpi = 600)
