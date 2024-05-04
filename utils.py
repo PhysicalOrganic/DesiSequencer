@@ -12,15 +12,14 @@ import numpy as np
 import pandas as pd
 
 def read_desi_data_file(file: Path,
-                        mz_round: int = 2) -> dict:
+                        mz_round: int = 2) -> list[dict]:
     '''
-    Reads a converted (.RAW to .txt) desi file
-    Takes the raw scan data formatted as a string and splits it
-    into a dictionary of m/z:intensity pairs.
+    Reads a converted (.RAW to .txt) desi file and splits it
+    into a list of dictionaries of m/z:intensity pairs.
 
     Parameters
     ----------
-    scan: str
+    file: Path
         Original scan data formatted like:
         ...m/z, intensity;m/z, intensity;m/z, intensity;...
 
@@ -29,7 +28,7 @@ def read_desi_data_file(file: Path,
 
     Returns
     ----------
-    dict
+    list[dict]
     '''
 
     with open(file, 'r', encoding='utf-8') as f:
@@ -62,33 +61,81 @@ def read_desi_data_file(file: Path,
 
     return cleaned_scans
 
-
 def get_average_intensity_of_scan(scan: dict,
                                   mass_thresh: float = 500) -> float:
     '''
-    Gets the average intensity of all the masses of a scan
+    Calculates the average intensity of all the masses of a scan
     which is formatted as a dictionary of mass:intensity key:value
     pairs. Returns the average intensity.
 
+    Parameters
+    ----------
     scan: dict
         Dictionary of mass:intensity pairs which represents
         a mass spectrum scan
 
     mass_thresh: float
-        Threshold overwhich masses are considered
+        Threshold overwhich masses are considered ()
+
+    Returns
+    ----------
+    float
     '''
     return np.average([scan[x] for x in scan.keys() if x >= mass_thresh])
 
 def get_spots(intensities: list[float],
-              threshold: float,
-              spot_width: int,
-              look_ahead_bias: float = 0.8,
+              threshold: float | str = 'auto',
+              spot_width: int = 6,
+              look_ahead_bias: float = 1.2,
+              look_behind_bias: float = 1.2,
               polyorder: int = 2,
-              plot_smoothed: bool = False,
+              plot_smoothed: bool = True,
               debug: bool = False) -> list[int]:
+    '''
+    Analyzes a list of intensities from a DESI scan
+    and splits them into separate peaks.
 
-    if look_ahead_bias <= 0 or look_ahead_bias > 1:
-        raise ValueError(f'Looking ahead must be greater than 0 and less than or equal to 1, not {look_ahead_bias}.')
+    Parameters
+    ----------
+    intensities: list[float]
+        List of scan intensities
+
+    threshold: float (default = 'auto')
+        Intensity threshold above which scans are
+        considered for peak selection
+
+    spot_width: int (default = 6)
+        Approximate width of the spots
+
+    look_ahead_bias: float (default = 1.2)
+        Biases the selection of signals ahead of the
+        top of a peak.
+
+    look_behind_bias: float (default = 1.2)
+        Biases the selection of signals behind the
+        top of a peak.
+
+    polyorder: int (default = 2)
+        Controls smoothing of intensity list with
+        Savitzky-Golay and moving average.
+
+    plot_smoothed: (default = 2)
+        Plots the smoothed values on the DESI scan
+        spectrum along with the actual data
+
+    debug: bool (default = False)
+        Control debug printing
+
+    Returns
+    ----------
+    list[int]
+        List of lists where the inner list contains indices
+        of the original scans that are associated with a peak
+        in the DESI scan
+    '''
+
+    #if look_ahead_bias <= 0 or look_ahead_bias > 1:
+    #    raise ValueError(f'Looking ahead must be greater than 0 and less than or equal to 1, not {look_ahead_bias}.')
 
     def movingaverage(interval, window_size):
         window = np.ones(int(window_size))/float(window_size)
@@ -100,7 +147,7 @@ def get_spots(intensities: list[float],
 
     if threshold == 'auto' and not isinstance(threshold, float):
         threshold = np.average(smoothed) * 0.8
-        print(f'Setting threshold to {threshold} counts')
+        print(f'[INFO] Automatically setting threshold to {threshold} counts')
 
     # Find the extreme
     extrema = list(find_peaks(smoothed)[0])
@@ -120,6 +167,10 @@ def get_spots(intensities: list[float],
         for idx in look_ahead_list:
             if idx <= extreme_point:
                 continue
+            # Check if we're double counting scans for multiple extrema
+            #if len(spots) > 1:
+            #    if idx in spots[len(spots) - 1]:
+            #        break
             if smoothed[idx] < threshold * look_ahead_bias: # Look ahead since the trailing tails might be better?
                 break
 
@@ -133,7 +184,11 @@ def get_spots(intensities: list[float],
         for idx in look_behind_list:
             if idx >= extreme_point or idx in scans_associated_with_spot:
                 continue
-            if smoothed[idx] < threshold:
+            # Check if we're double counting scans for multiple extrema
+            #if len(spots) > 1:
+            #    if idx in spots[len(spots) -1]:
+            #        break
+            if smoothed[idx] < threshold * look_behind_bias:
                 break
             #print(f'Scan {idx} is less than {extreme_point} and has intensity greater than threshold')
             scans_associated_with_spot.append(idx)
@@ -153,7 +208,7 @@ def get_spots(intensities: list[float],
     ax.legend()
     for extreme_point, spot_group in zip(extrema, spots):
         if debug:
-            print(f'Extreme point {extreme_point} has scans {spot_group}')
+            print(f'[DEBUG] Extreme point {extreme_point} has scans {spot_group}')
         ax.plot(spot_group, [intensities[z] for z in spot_group])
     plt.show()
 
@@ -184,7 +239,7 @@ def combine_scans(scans: list[dict], debug: bool = True) -> dict:
 
 def mass_to_monomer(mass: int,
                     mass_monomer_definitions: dict,
-                    monomer_tolerance: float = 1,
+                    endcap_tolerance: float = 0.1,
                     endcap_mass: float = 262.084,
                     endcap_name: str = 'Tyr(OMe)',
                     debug: bool = False):
@@ -208,9 +263,7 @@ def mass_to_monomer(mass: int,
     #print(f'Bounds for mass: {mass}: {lower_bound} - {upper_bound}: endcap dif: {endcap_difference}')
 
     # Return the endcap if found
-    if abs(endcap_difference) <= 0.1 * endcap_mass:
-        if endcap_difference >= monomer_tolerance:
-            print(f'[WARNING] In range of endcap but found {mass} instead of {endcap_mass}')
+    if abs(endcap_difference) <= endcap_tolerance * endcap_mass:
         return endcap_name
 
     difs = {monomer_symbol:abs(monomer_mass_defn - mass) for monomer_mass_defn, monomer_symbol in mass_monomer_definitions.items()}
@@ -440,9 +493,6 @@ def find_parent_mass(scanData: pd.DataFrame,
     # The intervals are going to be pairs of minima
     if first_point_identity == 'max':
 
-        dfs_to_plot = []
-
-        splits = chunks(s[mi], 2)
         for i in range(len(s[mi]) - 1):
 
             # Get the split
@@ -456,15 +506,6 @@ def find_parent_mass(scanData: pd.DataFrame,
                 parent_peak_intensity = float(temp[temp['Intensity'] == temp['Intensity'].max()]['Intensity'].iloc[0])
 
     else:
-        raise Exception('Code was not made to properly handle min first.')
-
-    #if debug:
-    #    fig, axes = plt.subplots(1,2)
-    #
-    #    axes[0].plot(scanData['Mass'], y, lw=0.5)
-    #    axes[0].scatter([parent_peak], [parent_peak_intensity], color='red')
-    #    axes[1].plot(s, e, color = 'blue')
-    #    plt.savefig('./debug-parent-peak_ident.png', dpi=600)
-    #    plt.clf()
+        raise Exception('Code was not made to handle min first.')
 
     return parent_peak
