@@ -1,51 +1,9 @@
-# PeakPicker
+# DesiSequencer
+Takes the plain text DESS mass spectrometer data (.txt) and analyzes them to extract sequence information.
+The program that converts the .RAW files from the spectrometer is not included.
 
-Converts raw DESI mass spectrometer data (.RAW) into plain text files which can be analyzed
-by the Python code to extract sequence information.
-## Workflow
+## Usage
 
-    1. Use Visual Studio and Program.cs in the RawFileReaderExample directory to decode raw files
-       into textfiles. Change the directory information around line 149 to the appropriate location of the raw files.
+    1. Convert .RAW files to the plain text format (.txt) found in the data/ directory.
 
-      (THIS IS OUTDATED - YOU SHOULD USE THE VISUAL STUDIO OPTION AND NOT PYTHON FOR THIS)
-       The readRawFile.py script can also be used to extract the data from the .RAW
-       file types. However, there are several instances in which the *ion count* or *intensity* of a
-       signal was incorrectly read as 1 unit off (i.e., signal that was 187,004 became 187,003). The
-       source of this difference is unknown.
-
-    2. Change the run and debug preferences to input any CLI arguments. In the project properties,
-       change working directory to the directory containing your data
-
-    3. Run the program. The output will be a text file with the scan data which can be processed,
-       plotted, and used to determine sequence information.
-
-    4. Use the interactive jupyter notebook to perform the sequencing. `SequenceFromDesi.ipynb`
-
-## Dev notes
-install this https://www.mono-project.com/download/stable/#download-mac
-install this https://dotnet.microsoft.com/en-us/download/dotnet/8.0 (the runtime installer and the sdk)
-https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-8.0.4-macos-arm64-installer
-https://visualstudio.microsoft.com/thank-you-downloading-visual-studio-mac/?sku=communitymac&rel=17
-
-pip install pythonnet
-pip install numpy
-conda install cmake
-
-git clone https://github.com/dotnet/runtime.git
-cd
-
-$ brew install pkg-config
-$ brew cask install mono-mdk
-
-export DOTNET_ROOT=/usr/local/share/dotnet/
-
-pip install pandas
-pip install matplotlib
-pip install scikit-learn
-
-install C# in vscode
-
-pip install xlsxwriter
-
-# TODO
-matplotlib clf() for plotting mutliple spots
+    2. Use the interactive jupyter notebook to perform the sequencing. `SequenceFromDesi.ipynb`

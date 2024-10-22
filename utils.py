@@ -1,10 +1,19 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
+# This software is licensed under the MIT License.
+# See the LICENSE file for more information.
+
+'''
+Contains useful utility functions
+'''
 
 from pathlib import Path
 
 from scipy.signal import argrelextrema, savgol_filter, find_peaks
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from sklearn.neighbors import KernelDensity
 
@@ -55,7 +64,7 @@ def read_desi_data_file(file: Path,
             if len(pair) > 0:
                 pair = pair.strip(' ')
                 pair = pair.split(',')
-                mass_intensity_pairs[round(float(pair[0]), mz_round)] = round(float(pair[1]),1)
+                mass_intensity_pairs[round(float(pair[0]), mz_round)] = round(float(pair[1]), 1)
 
         cleaned_scans.append(mass_intensity_pairs)
 
@@ -90,6 +99,7 @@ def get_spots(intensities: list[float],
               look_behind_bias: float = 1.2,
               polyorder: int = 2,
               plot_smoothed: bool = True,
+              plot_extrema: bool = True,
               debug: bool = False) -> list[int]:
     '''
     Analyzes a list of intensities from a DESI scan
@@ -119,9 +129,12 @@ def get_spots(intensities: list[float],
         Controls smoothing of intensity list with
         Savitzky-Golay and moving average.
 
-    plot_smoothed: (default = 2)
+    plot_smoothed: bool
         Plots the smoothed values on the DESI scan
         spectrum along with the actual data
+
+    plot_smoothed: bool
+        Plot red Xs at the peak maxima
 
     debug: bool (default = False)
         Control debug printing
@@ -133,12 +146,8 @@ def get_spots(intensities: list[float],
         of the original scans that are associated with a peak
         in the DESI scan
     '''
-
-    #if look_ahead_bias <= 0 or look_ahead_bias > 1:
-    #    raise ValueError(f'Looking ahead must be greater than 0 and less than or equal to 1, not {look_ahead_bias}.')
-
     def movingaverage(interval, window_size):
-        window = np.ones(int(window_size))/float(window_size)
+        window = np.ones(int(window_size)) / float(window_size)
         return np.convolve(interval, window, 'same')
 
     # Smooth the spectrum scan
@@ -163,54 +172,99 @@ def get_spots(intensities: list[float],
 
         # Look ahead
         look_ahead_list = list([idx for idx, _ in enumerate(smoothed) if idx > extreme_point])
-        #print(f'extrema: {extreme_point} looking head at {look_ahead_list}')
+
+        if debug:
+            print(f'[DEBUG] extrema: {extreme_point} looking head at {look_ahead_list}')
+
         for idx in look_ahead_list:
             if idx <= extreme_point:
                 continue
-            # Check if we're double counting scans for multiple extrema
-            #if len(spots) > 1:
-            #    if idx in spots[len(spots) - 1]:
-            #        break
-            if smoothed[idx] < threshold * look_ahead_bias: # Look ahead since the trailing tails might be better?
+
+            # Look ahead since the trailing tails contain important masses
+            if smoothed[idx] < threshold * look_ahead_bias:
                 break
 
-            #print(f'Scan {idx} is greater than {extreme_point} and has intensity greater than threshold')
             scans_associated_with_spot.append(idx)
 
         # Look behind
         look_behind_list = list([idx for idx, _ in enumerate(smoothed) if idx < extreme_point])
         look_behind_list.reverse()
-        #print(f'extrema: {extreme_point} looking behind at {look_behind_list}')
+
+        if debug:
+            print(f'[DEBUG] extrema: {extreme_point} looking behind at {look_behind_list}')
+
         for idx in look_behind_list:
             if idx >= extreme_point or idx in scans_associated_with_spot:
                 continue
-            # Check if we're double counting scans for multiple extrema
-            #if len(spots) > 1:
-            #    if idx in spots[len(spots) -1]:
-            #        break
+
             if smoothed[idx] < threshold * look_behind_bias:
                 break
-            #print(f'Scan {idx} is less than {extreme_point} and has intensity greater than threshold')
             scans_associated_with_spot.append(idx)
 
         spots.append(sorted(list(set(scans_associated_with_spot))))
 
-    fig, ax = plt.subplots(1,1, figsize = (8,6))
-    ax.plot(np.arange(0, len(intensities)), intensities, color='black')
+    # Set fonts
+    plt.rcParams['font.family'] = 'Arial'
+    plt.rcParams['font.style'] = 'normal'
+    plt.rcParams['font.size'] = 8
+
+    # Make the figure
+    fig, ax = plt.subplots(1, 1, figsize=(3.5, 2.75))
+
+    for item in ax.get_xticklabels():
+        item.set_fontsize(7)
+    for item in ax.get_yticklabels():
+        item.set_fontsize(7)
+
+    # Plot the raw intensities in black
+    ax.plot(np.arange(0, len(intensities)),
+            intensities,
+            color='black',
+            linestyle='dashed',
+            dash_capstyle='round')
+
+    # Plot the smoothed spectra
     if plot_smoothed:
         ax.plot(np.arange(0, len(smoothed)), smoothed, color='purple', label='smoothed')
         ax.scatter(extrema, [smoothed[z] for z in extrema], marker='x', color='red')
-    else:
+
+    if plot_extrema:
         ax.scatter(extrema, [intensities[z] for z in extrema], marker='x', color='red')
+
     ax.set_xlabel('scan number')
     ax.set_ylabel('average scan intensity')
-    ax.hlines(threshold, xmin=0, xmax=len(intensities), color='red', label='intensity threshold')
-    ax.legend()
+
+    colors = [
+        '#9C55FF',
+        '#0164FF',
+        '#00BCBF',
+        '#04D500',
+        '#FB7D00',
+        '#F70047',
+    ]
+
+    count = 0
     for extreme_point, spot_group in zip(extrema, spots):
+
         if debug:
             print(f'[DEBUG] Extreme point {extreme_point} has scans {spot_group}')
-        ax.plot(spot_group, [intensities[z] for z in spot_group])
-    plt.show()
+
+        if count == 0:
+            ax.plot(spot_group,
+                    [intensities[z] for z in spot_group],
+                    color=colors[extrema.index(extreme_point)],
+                    solid_capstyle='round',
+                    label='selected scans')
+            count += 1
+        else:
+            ax.plot(spot_group,
+                    [intensities[z] for z in spot_group],
+                    color=colors[extrema.index(extreme_point)],
+                    solid_capstyle='round')
+
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+    plt.tight_layout()
+    plt.savefig('./scan_figure.png', dpi=1200, transparent=True)
 
     return spots
 
@@ -260,15 +314,15 @@ def mass_to_monomer(mass: int,
     lower_bound = mass - (heaviest_monomer * 1.05)
     upper_bound = mass - (lightest_monomer * 0.95)
 
-    #print(f'Bounds for mass: {mass}: {lower_bound} - {upper_bound}: endcap dif: {endcap_difference}')
-
     # Return the endcap if found
     if abs(endcap_difference) <= endcap_tolerance * endcap_mass:
         return endcap_name
 
-    difs = {monomer_symbol:abs(monomer_mass_defn - mass) for monomer_mass_defn, monomer_symbol in mass_monomer_definitions.items()}
+    difs = {monomer_symbol: abs(monomer_mass_defn - mass) for
+            monomer_mass_defn, monomer_symbol in mass_monomer_definitions.items()}
+
     df = pd.DataFrame([difs])
-    #display(df)
+
     return df.min().idxmin()
 
 
@@ -277,7 +331,7 @@ def identify_masses_from_sequencing(scan_data: pd.DataFrame,
                                     parent_mass: float,
                                     intensity_threshold: float = 0.10,
                                     endcap_mass: float = 262.084,
-                                    debug = True) -> tuple[dict, list[tuple]]: #110000
+                                    debug: bool = True) -> tuple[dict, list[tuple]]:
     '''
     Identifies the signals associated with the loss of a monomer
     from the parent oligomer. The parent oligomer is identified
@@ -326,7 +380,8 @@ def identify_masses_from_sequencing(scan_data: pd.DataFrame,
     LargestMassPeakIntensity = float(scan_data[scan_data['Mass'] == parent_mass]['Intensity'].iloc[0])
 
     if debug:
-        print(f'[DEBUG] intensity_percent: {intensity_percent}\tfirst intensity_threshold: {intensity_threshold}\tLargestMassPeakIntensity: {LargestMassPeakIntensity} counts.')
+        print(f'[DEBUG] intensity_percent: {intensity_percent}\tfirst intensity_threshold: \
+              {intensity_threshold}\tLargestMassPeakIntensity: {LargestMassPeakIntensity} counts.')
 
     # dictionary containing identity of monomers and the mass at which they are found
     monomers = {}
@@ -357,27 +412,27 @@ def identify_masses_from_sequencing(scan_data: pd.DataFrame,
         tmp_df = scan_data[(scan_data['Mass'] >= lower_bound) & (scan_data['Mass'] <= upper_bound)].copy(deep=True)
 
         # Filter out low intensity signals in the window
-        #tmp_df = tmp_df[tmp_df['Intensity'] >= (tmp_df['Intensity'].max() * intensity_percent)] # Change 0.5 here to intensity_percent to return to normal
+        # tmp_df = tmp_df[tmp_df['Intensity'] >= (tmp_df['Intensity'].max() * intensity_percent)]
 
         # If the df is empty, stop sequencing
         if tmp_df.empty:
-            print(f'[WARNING] Sequencing terminated because range of signals was empty!')
+            print('[WARNING] Sequencing terminated because range of signals was empty!')
             break
 
         # Go through each of the masses and monomers
         for mass, monomer_identity in mass_monomer_definitions.items():
             # The scores are the difference between
-            tmp_df[f'delta_{monomer_identity}'] = abs((current_peak  - tmp_df['Mass']) - mass)
+            tmp_df[f'delta_{monomer_identity}'] = abs((current_peak - tmp_df['Mass']) - mass)
 
-        #print(f'Minimum values along axes 0: \n{tmp_df.min(axis=0)}')
-        #print(f'Minimum values along axes 1: \n{tmp_df.min(axis=1)}')
+        # print(f'Minimum values along axes 0: \n{tmp_df.min(axis=0)}')
+        # print(f'Minimum values along axes 1: \n{tmp_df.min(axis=1)}')
         # Get the minimum of each row
         tmp_df['min'] = tmp_df.min(axis=1)
         tmp_df['score'] = tmp_df['min']
         tmp_df['intensity_score'] = tmp_df['Intensity'] / np.sum(tmp_df['Intensity'].to_list())
         tmp_df['intensity_score'] = 1 / tmp_df['intensity_score']
         tmp_df['intensity_score'] = tmp_df['intensity_score'] * (1 / tmp_df['intensity_score'].max())
-        tmp_df['score'] = tmp_df['score'] * (1 / tmp_df['score'].max()) # Normalize the score to 1
+        tmp_df['score'] = tmp_df['score'] * (1 / tmp_df['score'].max())  # Normalize the score to 1
         tmp_df['score'] = tmp_df['score'] + tmp_df['intensity_score']
 
         # Get the monomer identity? Might not be necessary
@@ -394,13 +449,15 @@ def identify_masses_from_sequencing(scan_data: pd.DataFrame,
             if debug:
                 print(f'[DEBUG] In endcap range {lower_bound} - {upper_bound}')
             tmp_df['score'] = abs(tmp_df['Mass'] - endcap_mass)
-            #display(tmp_df)
-
 
         # Reset current peak
         new_peak_to_use = float(tmp_df.loc[tmp_df['score'] == tmp_df['score'].min(), 'Mass'].iloc[0])
-        #if debug:
-        #    print(f'[DEBUG] Selecting loss of monomer from previous mass (i.e., current_peak) {current_peak}. Global min: {global_min_column}. Min score: {tmp_df["score"].min()}. Selected {new_peak_to_use} ')
+
+        if debug:
+            print(f'[DEBUG] Selecting loss of monomer from previous mass (i.e., current_peak) {current_peak}')
+            print(f'[DEBUG] Global min: {global_min_column}. Min score: {tmp_df["score"].min()}')
+            print(f'[DEBUG] Selected {new_peak_to_use}')
+
         current_peak = new_peak_to_use
         monomers[current_peak] = float(tmp_df.loc[tmp_df['Mass'] == current_peak, 'Intensity'].iloc[0])
 
@@ -416,11 +473,10 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 
-
 def find_parent_mass(scanData: pd.DataFrame,
                      threshold: float = 0.01,
                      bandwidth: float = 3.5,
-                     debug = False) -> float:
+                     debug: bool = False) -> float:
     '''
     Finds the largest intensity signal in the group of mass spectra
     signals which are associated with the largest masses measured.
@@ -453,10 +509,10 @@ def find_parent_mass(scanData: pd.DataFrame,
     y = scanData['Intensity'].to_numpy()
 
     # Get the threshold value
-    #threshold = threshold * max(y)
+    # threshold = threshold * max(y)
 
     if threshold >= 0.01:
-        print(f'[WARNING] Small parent peaks can cause unusual results with thresholds larger than 0.01.')
+        print('[WARNING] Small parent peaks can cause unusual results with thresholds larger than 0.01.')
 
     threshold = threshold * max(y)
 
@@ -467,14 +523,14 @@ def find_parent_mass(scanData: pd.DataFrame,
     a = tmp_df['Mass'].to_numpy()
 
     # Calculate the density function
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(a.reshape(-1,1))
+    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(a.reshape(-1, 1))
 
     # Generate linepoints for evaulating with density function
     # we probably wont look at anything larger than 2000 m/z
     s = np.linspace(0, 2000, num=1000)
 
     # Density function? (less negative values (greater values) indicate greater density of points)
-    e = kde.score_samples(s.reshape(-1,1))
+    e = kde.score_samples(s.reshape(-1, 1))
 
     # Get the min and maxima indices of the evaluated line points
     # These are not the indices of the original data
@@ -502,7 +558,8 @@ def find_parent_mass(scanData: pd.DataFrame,
             # this will get the group of signals with the highest mass
             if i == len(s[mi]) - 2:
                 temp = scanData[(scanData['Mass'] >= split[1]) & (scanData['Intensity'] >= threshold)]
-                parent_peak = float(temp[temp['Intensity'].astype(float) == temp['Intensity'].astype(float).max()]['Mass'].iloc[0])
+                parent_peak = float(temp[temp['Intensity'].astype(float) == temp['Intensity'].astype(float).max()]
+                                    ['Mass'].iloc[0])
                 parent_peak_intensity = float(temp[temp['Intensity'] == temp['Intensity'].max()]['Intensity'].iloc[0])
 
     else:
